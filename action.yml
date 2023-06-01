@@ -19,6 +19,9 @@ inputs:
   docker-labels:
     description: 'The Docker labels'
     required: false
+  template-variables:
+    description: 'If using liquid templates, these values serve as the context to replace in the task definition'
+    required: false
 outputs:
   task-definition:
     description: 'The path to the rendered task definition file'
