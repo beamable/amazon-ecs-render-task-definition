@@ -2,6 +2,7 @@ const path = require('path');
 const core = require('@actions/core');
 const tmp = require('tmp');
 const fs = require('fs');
+const { Liquid } = require('liquidjs');
 
 async function run() {
   try {
@@ -12,14 +13,25 @@ async function run() {
 
     const environmentVariables = core.getInput('environment-variables', { required: false });
     const dockerLabels = core.getInput('docker-labels', { required: false });
+    const templateVariables = core.getInput('template-variables', { required: false });
 
     // Parse the task definition
     const taskDefPath = path.isAbsolute(taskDefinitionFile) ?
       taskDefinitionFile :
       path.join(process.env.GITHUB_WORKSPACE, taskDefinitionFile);
+
     if (!fs.existsSync(taskDefPath)) {
       throw new Error(`Task definition file does not exist: ${taskDefinitionFile}`);
     }
+
+    if (templateVariables) {
+      const vars = templateVariables.split('\n');
+
+      const engine = new Liquid();
+      const text = fs.readFile(taskDefPath);
+    }
+
+
     const taskDefContents = require(taskDefPath);
 
     // Insert the image URI
