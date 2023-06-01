@@ -2,7 +2,7 @@ const path = require('path');
 const core = require('@actions/core');
 const tmp = require('tmp');
 const fs = require('fs');
-// const { Liquid } = require('liquidjs');
+const { Liquid } = require('liquidjs');
 
 async function run() {
   try {
@@ -23,19 +23,21 @@ async function run() {
       throw new Error(`Task definition file does not exist: ${taskDefinitionFile}`);
     }
 
-    // const templateVariables = core.getInput('template-variables', { required: false });
+    const templateVariables = core.getInput('template-variables', { required: false });
 
-    // if (templateVariables) {
-    //   const context = {};
-    //   parseVariables(templateVariables).forEach(function (variable) {
-    //     context[variable.name] = variable.value;
-    //   });
+    var rendered;
+    if (templateVariables) {
+      const context = {};
+      parseVariables(templateVariables).forEach(function (variable) {
+        context[variable.name] = variable.value;
+      });
 
-    //   const engine = new Liquid();
-    //   const rendered = await engine.renderFile(taskDefPath, context);
-    // }
+      const engine = new Liquid();
+      const text = fs.readFileSync(taskDefPath);
+      rendered = engine.parseAndRenderSync(text, context);
+    }
 
-    const taskDefContents = require(taskDefPath);
+    const taskDefContents = rendered !== undefined ? JSON.parse(rendered) : require(taskDefPath);
 
     // Insert the image URI
     if (!Array.isArray(taskDefContents.containerDefinitions)) {
