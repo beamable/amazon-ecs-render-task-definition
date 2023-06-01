@@ -2,7 +2,7 @@ const path = require('path');
 const core = require('@actions/core');
 const tmp = require('tmp');
 const fs = require('fs');
-const { Liquid } = require('liquidjs');
+// const { Liquid } = require('liquidjs');
 
 async function run() {
   try {
@@ -13,7 +13,6 @@ async function run() {
 
     const environmentVariables = core.getInput('environment-variables', { required: false });
     const dockerLabels = core.getInput('docker-labels', { required: false });
-    const templateVariables = core.getInput('template-variables', { required: false });
 
     // Parse the task definition
     const taskDefPath = path.isAbsolute(taskDefinitionFile) ?
@@ -24,13 +23,17 @@ async function run() {
       throw new Error(`Task definition file does not exist: ${taskDefinitionFile}`);
     }
 
-    if (templateVariables) {
-      const vars = templateVariables.split('\n');
+    // const templateVariables = core.getInput('template-variables', { required: false });
 
-      const engine = new Liquid();
-      const text = fs.readFile(taskDefPath);
-    }
+    // if (templateVariables) {
+    //   const context = {};
+    //   parseVariables(templateVariables).forEach(function (variable) {
+    //     context[variable.name] = variable.value;
+    //   });
 
+    //   const engine = new Liquid();
+    //   const rendered = await engine.renderFile(taskDefPath, context);
+    // }
 
     const taskDefContents = require(taskDefPath);
 
@@ -53,26 +56,9 @@ async function run() {
         containerDef.dockerLabels = {};
       }
 
-      // Get pairs by splitting on newlines
-      dockerLabels.split('\n').forEach(function (line) {
-        // Trim whitespace
-        const trimmedLine = line.trim();
-        // Skip if empty
-        if (trimmedLine.length === 0) { return; }
-        // Split on =
-        const separatorIdx = trimmedLine.indexOf("=");
-        // If there's nowhere to split
-        if (separatorIdx === -1) {
-          throw new Error(`Cannot parse the docker labels '${trimmedLine}'. Docker label pairs must be of the form NAME=value.`);
-        }
-        // Build object
-        const variable = {
-          name: trimmedLine.substring(0, separatorIdx),
-          value: trimmedLine.substring(separatorIdx + 1),
-        };
-
+      parseVariables(dockerLabels).forEach(function(variable) {
         containerDef.dockerLabels[variable.name] = variable.value;
-      })
+      });
     }
 
     if (environmentVariables) {
@@ -82,24 +68,7 @@ async function run() {
         containerDef.environment = [];
       }
 
-      // Get pairs by splitting on newlines
-      environmentVariables.split('\n').forEach(function (line) {
-        // Trim whitespace
-        const trimmedLine = line.trim();
-        // Skip if empty
-        if (trimmedLine.length === 0) { return; }
-        // Split on =
-        const separatorIdx = trimmedLine.indexOf("=");
-        // If there's nowhere to split
-        if (separatorIdx === -1) {
-          throw new Error(`Cannot parse the environment variable '${trimmedLine}'. Environment variable pairs must be of the form NAME=value.`);
-        }
-        // Build object
-        const variable = {
-          name: trimmedLine.substring(0, separatorIdx),
-          value: trimmedLine.substring(separatorIdx + 1),
-        };
-
+      parseVariables(environmentVariables).forEach(function (variable) {
         // Search container definition environment for one matching name
         const variableDef = containerDef.environment.find((e) => e.name == variable.name);
         if (variableDef) {
@@ -109,9 +78,8 @@ async function run() {
           // Else, create
           containerDef.environment.push(variable);
         }
-      })
+      });
     }
-
 
     // Write out a new task definition file
     var updatedTaskDefFile = tmp.fileSync({
@@ -128,6 +96,26 @@ async function run() {
   catch (error) {
     core.setFailed(error.message);
   }
+}
+
+function parseVariables(variableText) {
+  return variableText.split('\n').map(function (line) {
+    // Trim whitespace
+    const trimmedLine = line.trim();
+    // Skip if empty
+    if (trimmedLine.length === 0) { return; }
+    // Split on =
+    const separatorIdx = trimmedLine.indexOf("=");
+    // If there's nowhere to split
+    if (separatorIdx === -1) {
+      throw new Error(`Cannot parse the line '${trimmedLine}'. Pairs must be of the form NAME=value.`);
+    }
+    // Build object
+    return {
+      name: trimmedLine.substring(0, separatorIdx),
+      value: trimmedLine.substring(separatorIdx + 1),
+    };
+  });
 }
 
 module.exports = run;
