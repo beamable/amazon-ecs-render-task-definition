@@ -326,4 +326,77 @@ describe('Render task definition', () => {
     );
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'task-definition', 'new-task-def-file-name');
   });
+
+
+
+
+  test('renders a task definition at an absolute path, and use liquid template rendering', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce('/hello/task-definition.json') // task-definition
+      .mockReturnValueOnce('web')                  // container-name
+      .mockReturnValueOnce('nginx:latest')         // image
+      .mockReturnValueOnce('EXAMPLE=here')       // environment-variables
+      .mockReturnValueOnce('key1=update_value1\nkey2=update_value2\nkey3=value3')
+      .mockReturnValueOnce('ENV=dev\nREGION=us-west-2');
+
+    fs.readFileSync = jest
+      .fn()
+      .mockReturnValue(JSON.stringify({
+        family: 'task-def-family-{{ ENV }}',
+        containerDefinitions: [
+          {
+            name: "web",
+            image: "some-other-image",
+            region: "{{ REGION }}"
+          }
+        ]
+      }));
+
+    jest.mock('/hello/task-definition.json', () => JSON.stringify({
+      family: 'task-def-family-{{ ENV }}',
+      containerDefinitions: [
+        {
+          name: "web",
+          image: "some-other-image",
+          region: "{{ REGION }}"
+        }
+      ]
+    }), { virtual: true });
+
+    await run();
+
+    expect(tmp.fileSync).toHaveBeenNthCalledWith(1, {
+      tmpdir: '/home/runner/work/_temp',
+      prefix: 'task-definition-',
+      postfix: '.json',
+      keep: true,
+      discardDescriptor: true
+    });
+
+    expect(fs.writeFileSync).toHaveBeenNthCalledWith(1, 'new-task-def-file-name',
+      JSON.stringify({
+        family: 'task-def-family-dev',
+        containerDefinitions: [
+          {
+            name: "web",
+            image: "nginx:latest",
+            region: "us-west-2",
+            dockerLabels: {
+              "key1": "update_value1",
+              "key2": "update_value2",
+              "key3": "value3"
+            },
+            environment: [
+              {
+                name: "EXAMPLE",
+                value: "here"
+              }
+            ]
+          }
+        ]
+      }, null, 2)
+    );
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, 'task-definition', 'new-task-def-file-name');
+  });
 });
