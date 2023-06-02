@@ -34,7 +34,7 @@ async function run() {
 
       const engine = new Liquid();
       const text = fs.readFileSync(taskDefPath, { encoding: 'utf8', flag: 'r' });
-      console.log("Text: " + text);
+      core.info("Text: " + text);
       rendered = engine.parseAndRenderSync(text, context);
     }
 
